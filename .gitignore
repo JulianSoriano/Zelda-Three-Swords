@@ -1,0 +1,10 @@
+# Never commit ROM images (the original or patched game)
+*.nes
+*.NES
+*.zip
+# build outputs
+src/out/
+src/store.inc
+src/xchg_main.inc
+src/xchg_coll.inc
+__pycache__/
