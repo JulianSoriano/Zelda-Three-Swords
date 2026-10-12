@@ -38,6 +38,8 @@ BTN_DN  = $04
 ; File select.  Returns A = ButtonsPressed & Start (flags set), like
 ; the "LDA ButtonsPressed / AND #$10" it replaces.
 MenuMode1:
+    LDA #$00
+    STA M_FromElim              ; (stack-page byte: not cleared at boot)
     LDA M_Pressed
     AND #BTN_UP
     BEQ @notup

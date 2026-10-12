@@ -71,6 +71,13 @@ put(2, 0xA59A, jsr(lab['MenuMode1']) + b'\xea', 'a5f82910')
 put(2, 0x9EF0, jsr(lab['MenuModeE']) + b'\xea', 'a5f82910')
 put(2, 0x9FC5, jsr(lab['MenuModeF']) + b'\xea', 'a5f8c910')
 put(2, 0xA236, bytes.fromhex('8d0402'), '8d0002')   # name cursor Y went into the heart's sprite
+# Title screen credit: the two blank rows inside the title frame (bank 6's title
+# transfer buffer; 24 interior tiles per row, font tiles A-Z = $0A-$23, space = $24).
+def _tiles(t): return bytes(0x24 if c == ' ' else (int(c) if c.isdigit() else ord(c) - 55) for c in t)
+def _row(t): return _tiles(t.center(24))
+_blank = b'\x24' * 24
+put(6, 0xAB71, _row('THREE SWORDS ROM HACK'), _blank.hex())
+put(6, 0xAB94, _row('BY RAMENPHOLIFE'), _blank.hex())
 open(dst, 'wb').write(rom)
 sizes = {k: os.path.getsize('out/' + k + '.bin') for k in ['wstub', 'farcall', 'b1', 'b3', 'b4', 'b2']}
 print('built', dst, sizes)

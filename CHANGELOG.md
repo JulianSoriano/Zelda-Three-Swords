@@ -5,6 +5,14 @@ states from the overworld and dungeons 1–9 (room-clear times, slowdown, partne
 targeted tests for each feature, and a crash test walking through rooms of the overworld and
 all nine dungeons.
 
+## Final — title credit and menu fix
+- Title screen now shows "THREE SWORDS ROM HACK" and "BY RAMENPHOLIFE" inside the title frame.
+- Fixed the heart-cursor glitch: the menu code used a flag in the stack page (not cleared at
+  power-on). With stale memory (real hardware, some emulators) the register screen closed the
+  moment it opened, leaving the cursor sprites in the wrong state. The flag is now cleared on the
+  file-select screen. Tested with random power-on memory (12/12 runs enter and leave correctly;
+  v3 failed all 12).
+
 ## v3 — no more spinning in tight spots
 - A partner only turns when it actually takes a step; bumping into a wall no longer flips its
   facing (the main cause of "spinning on the spot" when boxed in).

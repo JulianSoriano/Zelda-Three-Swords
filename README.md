@@ -21,7 +21,7 @@ breakable walls for you, and can never hurt you or be hurt.
    | MD5 | `f4095791987351be68674a9355b266bc` |
    | SHA-1 | `3701381a82fc7d52b2dd3e8892047b30a114ab43` |
 
-2. Apply [`patch/Zelda Three Swords Mod v3.ips`](patch/) with any IPS patcher
+2. Apply [`patch/Zelda Three Swords Mod Final.ips`](patch/) with any IPS patcher
    (Floating IPS, Lunar IPS, RomPatcher.js, …).
 3. Load the patched ROM in any NES emulator or flash cart. Your existing save files work.
 
@@ -39,6 +39,9 @@ breakable walls for you, and can never hurt you or be hurt.
 | **Wall bombing** | If you own at least one bomb and nothing needs fighting, one partner bombs each bombable dungeon wall in the room, and the rock walls that hide caves on the overworld. Free. |
 | **Invincible and harmless** | They can't be hurt, monsters ignore them, and nothing they do can hurt you. Their kills count normally (drops, shutter doors, room clears). They leave the people in caves alone and don't pick up items. |
 
+### Title screen
+The title screen now reads "THREE SWORDS ROM HACK / BY RAMENPHOLIFE" inside the frame.
+
 ### Game changes
 - A new save file starts with **255 rupees**.
 - Monsters do **double damage** to you (rings still halve / quarter it).
@@ -51,7 +54,9 @@ breakable walls for you, and can never hurt you or be hurt.
 | Elimination mode | **Up/Down** move the heart, **A** erases the chosen file (or leaves on END), **B** returns to the file select. |
 
 Select still works everywhere as in the original. Also fixed: the original game's
-register-screen bug that wrote the name cursor's position into the heart cursor's sprite.
+register-screen bug that wrote the name cursor's position into the heart cursor's sprite, and a
+bug in v2/v3 where a stray flag in uninitialised memory could bounce you straight back out of
+the register screen and leave the heart cursor mispositioned.
 
 ### Performance
 The partners stick to their swords in crowded rooms to keep the game at full speed; in the
