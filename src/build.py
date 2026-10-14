@@ -57,10 +57,12 @@ put(7, 0xECB7, jsr(lab['MainHook']) + b'\xea\xea', 'a212203ef7')
 put(1, 0x79FD, jsr(lab['PostCheck']), '20a77a')
 put(4, 0xA061, jsr(lab['WizzHook']), '20a77a')
 put(7, 0xE901, jsr(lab['MyInit']), '20008d')
-# New game: 255 rupees.  The file-registration code sets up a new profile's
-# hearts and max bombs; a stub in bank 2's free space also sets its rupees.
-put(2, 0xAF90, bytes.fromhex('a025a90891c0' 'a016a9ff91c0' '60'), free=True)
-put(2, 0x9F49, jsr(0xAF90) + b'\xea\xea\xea', 'a025a90891c0')
+put(4, 0x98AF, jsr(lab['DodoBombHook']), '20b999')   # UpdateDodongo: partners' bombs feed/stun it too
+# New game: 255 rupees and 9 keys.  The file-registration code sets up a new profile's
+# hearts and max bombs; a stub in bank 2's free space also sets the rest
+# ($16 = rupees, $17 = InvKeys).
+put(2, 0xB200, bytes.fromhex('a025a90891c0' 'a016a9ff91c0' 'a017a90991c0' '60'), free=True)
+put(2, 0x9F49, jsr(0xB200) + b'\xea\xea\xea', 'a025a90891c0')
 # Double damage: Link_BeHarmed doubles the damage before the rings halve it.
 # (LDY InvRing in WRAM code -> JSR stub in bank 7's free space)
 put(7, 0xFF42, bytes.fromhex('060e' '260d' 'ac6206' '60'), free=True)
@@ -78,6 +80,41 @@ def _row(t): return _tiles(t.center(24))
 _blank = b'\x24' * 24
 put(6, 0xAB71, _row('THREE SWORDS ROM HACK'), _blank.hex())
 put(6, 0xAB94, _row('BY RAMENPHOLIFE'), _blank.hex())
+# v4: the candle works by itself.
+#  - dark dungeon rooms never go dark while Link owns a candle (IsDarkRoom in banks 5 and 4)
+#  (bushes are burnt by the partners, see TreeCheck / WallTask in clones.s)
+# (the level's boss room keeps its darkness: Ganon's scene brightens it itself)
+dark = bytes.fromhex('ad5b06' 'f008' 'ccbc6b' 'f003' 'a900' '60' 'a510' 'f005' 'b97e6a' '2980' '60')
+put(5, 0xB8A0, dark, free=True)
+put(5, 0xB68D, bytes.fromhex('4ca0b8'), 'a510f0')
+put(4, 0xBA00, dark, free=True)
+put(4, 0xB1EA, bytes.fromhex('4c00ba'), 'a510f0')
+# v4: clearer NPC text (hints.py).  Bank 1 holds a table of 38 string addresses at
+# $8000 and the strings right after it ($804C-$85A1).  Strings that hints.py does not
+# replace keep their original bytes; the block is rewritten and the table re-pointed.
+import hints
+TB, TS, TE, N = 0x8000, 0x804C, 0x85A2, 38
+def r16(a): o = H + rom_offset(1, a); return rom[o] | rom[o + 1] << 8
+tab = [r16(TB + 2 * i) for i in range(N)]
+assert tab[0] == TS and tab == sorted(tab), 'unexpected text table'
+ends = tab[1:] + [TE]
+texts = []
+for i in range(N):
+    if i in hints.TEXT: texts.append(hints.encode(hints.TEXT[i]))
+    else: o = H + rom_offset(1, tab[i]); texts.append(bytes(rom[o:o + ends[i] - tab[i]]))
+# Pack in order into the original block; what does not fit goes to free space after the bank 1 code.
+SP = 0xB7A0
+addr, sp, block, spill = TS, SP, bytearray(), bytearray()
+for i, t in enumerate(texts):
+    if addr + len(t) <= TE: a, addr = addr, addr + len(t); block += t
+    else: a, sp = sp, sp + len(t); spill += t
+    rom[H + rom_offset(1, TB + 2 * i)] = a & 255
+    rom[H + rom_offset(1, TB + 2 * i + 1)] = a >> 8
+assert sp <= 0xBF50, 'spill overflows bank 1 free space'
+o = H + rom_offset(1, TS)
+rom[o:o + TE - TS] = bytes(block) + b'\xff' * (TE - TS - len(block))
+put(1, SP, bytes(spill), free=True)
+print('npc text: %d bytes (%d in place, %d moved to $%04X)' % (len(block) + len(spill), len(block), len(spill), SP))
 open(dst, 'wb').write(rom)
 sizes = {k: os.path.getsize('out/' + k + '.bin') for k in ['wstub', 'farcall', 'b1', 'b3', 'b4', 'b2']}
 print('built', dst, sizes)

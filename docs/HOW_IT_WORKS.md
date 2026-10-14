@@ -66,7 +66,10 @@ calls the routine, re-maps bank 0 and returns with X, Y, A and the flags intact.
 | WRAM `$79FD` (bank 1 code) | `JSR CheckLinkCollision` in `CheckMonsterCollisions` | `JSR PostCheck` | after the game checks a monster against Link's weapons, check it against the partners' weapons too |
 | bank 4 `$A061` | `JSR CheckLinkCollision` (Wizzrobe) | `JSR WizzHook` | Wizzrobes run their own collision path |
 | WRAM `$7B5B` (`Link_BeHarmed`) | `LDY InvRing` | `JSR` stub at bank 7 `$FF42` | double the damage (`ASL $0E / ROL $0D`) before the ring loop |
-| bank 2 `$9F49` | `LDY #$25 / LDA #$08 / STA ($C0),Y` | `JSR` stub at bank 2 `$AF90` | when a new file is registered, also set its rupees to 255 |
+| bank 2 `$9F49` | `LDY #$25 / LDA #$08 / STA ($C0),Y` | `JSR` stub at bank 2 `$B200` | when a new file is registered, also set its rupees to 255, and its keys to 9 |
+| bank 4 `$98AF` | `JSR Dodongo_CheckBombHit` (`UpdateDodongo`) | `JSR DodoBombHook` | a partner's bomb feeds / stuns a Dodongo, not only the player's |
+| bank 5 `$B68D`, bank 4 `$B1EA` | `LDA CurLevel / BEQ` at the start of `IsDarkRoom` | `JMP` to a copy in free space (`$B8A0` / `$BA00`) | a dark room counts as lit while Link owns a candle (the level's boss room stays dark) |
+| bank 1 `$8000-$85A1`, `$B7A0` | NPC string table and strings | rewritten block (`hints.py`) | clearer NPC text; strings that don't fit the old block move to free space after the bank 1 code |
 | bank 2 `$A59A` | `LDA ButtonsPressed / AND #$10` | `JSR MenuMode1 / NOP` | file-select controls |
 | bank 2 `$9EF0` | `LDA ButtonsPressed / AND #$10` | `JSR MenuModeE / NOP` | register-name controls |
 | bank 2 `$9FC5` | `LDA ButtonsPressed / CMP #$10` | `JSR MenuModeF / NOP` | elimination controls |
@@ -159,6 +162,13 @@ Each partner is in one of three modes:
     then close in.
 - **Return** — walk back to the player's trail; warp onto it if stuck for long.
 
+**Boss weaknesses.** `BossTactic` runs first in a fight when the target is a boss that only one
+weapon hurts: Dodongo (bombs: walk to the spot 24 px in front of its mouth, face it and drop a
+bomb; once a bomb has stunned it the sword works), Gohma (arrows only, shot as soon as lined up
+at any range) and a big Digdogger (the partner plays the player's recorder once, `DigCheck`, which
+splits it into small ones the sword can hit). Bombs and arrows are free for the partners, as
+before; the recorder is only played if the player owns one.
+
 `FindTarget` skips monsters that can't be hurt right now (underground, peahats in flight,
 people in caves, types not in `targets.inc`), penalises a monster the other partner is already
 fighting so the two spread out, and skips a monster this partner recently failed to reach.
@@ -209,8 +219,19 @@ frames.
 
 ## 13. Game changes and menus
 
-- **255 rupees** — the register code sets up a new file's hearts and bomb capacity; a stub
-  also writes 255 to the file's rupees (offset `$16` of the file's item block).
+- **255 rupees, 9 keys** — the register code sets up a new file's hearts and bomb
+  capacity; a stub also writes 255 to the file's rupees (offset `$16` of the file record), 9 to
+  its keys (`$17`).
+- **The candle works by itself** — `IsDarkRoom` (banks 4 and 5) returns "lit" whenever
+  `InvCandle` is non-zero, so dark dungeon rooms never go dark; Bushes are burnt by the partners: `ScanWalls`
+  treats a secret-bush object (type `$64`) as job 5 when Link owns a candle, `PickWall` picks a stand
+  spot 24 px from it (the flame lands 32 px ahead), the partner uses `WieldCandle`, and `TreeCheck`
+  calls the game's own `UpdateTree` while that partner's standing fire is swapped in. Ganon's room keeps its own darkness handling.
+- **NPC text** (`hints.py`) — the 38 strings are 6-bit tile codes; the top two bits of a
+  character mark the end of a line (`$80` → line 2, `$40` → line 3, `$C0` → end of text). Leading
+  padding uses `$25`, the instant blank. Every replacement states something checked against the
+  game's code or data (heart requirements, prices, maze routes, boss weaknesses, drop rules);
+  strings that were already clear keep their original bytes.
 - **Double damage** — `Link_BeHarmed` keeps the damage in `$0D/$0E`; the stub doubles it right
   before the ring loop halves or quarters it.
 - **Menus** (`menu.s`) — each screen's handler starts with `LDA ButtonsPressed`; that

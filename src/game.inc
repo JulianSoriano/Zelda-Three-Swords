@@ -31,3 +31,6 @@ MakeSwordShot = $F85A ; bank 7
 UpdateRockWall = $8EEB ; bank 4
 FindDoorTypeByDoorBit = $A3F6 ; bank 5
 IsQuestSecretMismatch = $8F5A ; bank 4
+WieldFlute = $EF71 ; bank 7
+Dodongo_CheckBombHit = $99B9 ; bank 4
+UpdateTree = $8F0E ; bank 4

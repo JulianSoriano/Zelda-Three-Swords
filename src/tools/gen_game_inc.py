@@ -4,7 +4,7 @@ UpdateBombOrFire CheckLinkCollision CopyCommonCodeToRam AnimateLinkBase DrawObje
 CycleCurSpriteIndex SpriteOffsets GetCollidingTileMoving WieldSword WieldBoomerang WieldArrow WieldRod WieldBomb
 WieldCandle CheckMonsterBoomerangOrFoodCollision CheckMonsterSwordShotOrMagicShotCollision
 CheckMonsterBombOrFireCollision CheckMonsterSwordCollision CheckMonsterArrowOrRodCollision GetObjectMiddle
-InitializeGameOrMode BeginUpdateWorld PlayAreaColumnAddrs WalkableTiles MakeSwordShot UpdateRockWall FindDoorTypeByDoorBit IsQuestSecretMismatch'''.split()
+InitializeGameOrMode BeginUpdateWorld PlayAreaColumnAddrs WalkableTiles MakeSwordShot UpdateRockWall FindDoorTypeByDoorBit IsQuestSecretMismatch WieldFlute Dodongo_CheckBombHit'''.split()
 with open('../game.inc', 'w') as f:
     for n in names:
         b, a = rev1(n)

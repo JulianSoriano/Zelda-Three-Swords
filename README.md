@@ -21,7 +21,7 @@ breakable walls for you, and can never hurt you or be hurt.
    | MD5 | `f4095791987351be68674a9355b266bc` |
    | SHA-1 | `3701381a82fc7d52b2dd3e8892047b30a114ab43` |
 
-2. Apply [`patch/Zelda Three Swords Mod Final.ips`](patch/) with any IPS patcher
+2. Apply [`patch/Zelda Three Swords Mod v4.ips`](patch/) with any IPS patcher
    (Floating IPS, Lunar IPS, RomPatcher.js, …).
 3. Load the patched ROM in any NES emulator or flash cart. Your existing save files work.
 
@@ -36,6 +36,7 @@ breakable walls for you, and can never hurt you or be hurt.
 | **Unlimited arrows** | Monsters lined up but out of sword reach get an arrow, even if you have no bow or arrows, at no rupee cost (wooden damage, silver if you own the silver arrow). |
 | **No swinging at the air** | When they can't shoot (crowded room, weapon already out) they walk up instead; they don't swing at a monster that is still reeling from a hit, and they leave flying peahats alone until they land. |
 | **Walking round obstacles** | Blocks, rocks and trees are walked around instead of pushed into. Boxed in, they wait rather than shuffle. A monster they can't reach is left alone for a few seconds. |
+| **Boss weaknesses** | Against a boss that only one weapon hurts they use it: a **Dodongo** gets a bomb dropped in front of its mouth (then the sword once it is stunned), **Gohma** gets arrows (the sword does nothing to it), and a big **Digdogger** gets your recorder played once so it splits up (needs you to own a recorder). Bombs and arrows are free. |
 | **Wall bombing** | If you own at least one bomb and nothing needs fighting, one partner bombs each bombable dungeon wall in the room, and the rock walls that hide caves on the overworld. Free. |
 | **Invincible and harmless** | They can't be hurt, monsters ignore them, and nothing they do can hurt you. Their kills count normally (drops, shutter doors, room clears). They leave the people in caves alone and don't pick up items. |
 
@@ -43,8 +44,19 @@ breakable walls for you, and can never hurt you or be hurt.
 The title screen now reads "THREE SWORDS ROM HACK / BY RAMENPHOLIFE" inside the frame.
 
 ### Game changes
-- A new save file starts with **255 rupees**.
+- A new save file starts with **255 rupees and 9 keys**.
+- **The candle works by itself.** Once you own a candle (blue or red), dark dungeon rooms are lit (no
+  need to burn anything), and your partners walk up to a secret bush and burn it with it
+  (the blue candle works once per screen, the red one any number of times). Ganon's room keeps its darkness.
 - Monsters do **double damage** to you (rings still halve / quarter it).
+- **Clearer NPC text.** Where the original hints were vague or in broken English they now say
+  what to do and use numbers taken from the game's own code: heart requirements of the white
+  (5) and magical (12) sword, the prices of the money game, door repair (20 rupees), the bomb
+  upgrade (100 rupees for +4) and the hint caves, the routes through the Lost Hills (up x4,
+  4 east / 6 north of the start) and Lost Woods (up, left, down, left; 6 west / 1 north), how the
+  letter opens the potion shop, which weapon hurts Dodongo, Digdogger and Gohma, and the rule for
+  the guaranteed bomb drop. Hints that were already clear (and the riddles about map landmarks)
+  keep their original wording. Coordinates are for the first quest.
 
 ### Menus
 | Screen | Controls |
@@ -65,7 +77,7 @@ busiest rooms tested, slowdown stays around 0.1–0.6 % of frames.
 ### Limits
 - Eight sprites per scanline: as in the original game, sprites flicker when many are in a row.
 - Partners' sword beams vanish on impact instead of splitting.
-- Bosses with special weak points (Dodongo, Digdogger, Gohma's eye, Ganon) still need you.
+- Ganon still needs silver arrows; the partners only fire them if you own the silver arrow. The partners play the recorder for Digdogger only if you own one.
 - Emulator save-states made with older versions won't load.
 
 ## Building from source
@@ -100,7 +112,8 @@ src/          clones.s     the partners: hooks, AI, drawing, weapon handling (65
               gen_xchg.py  generates the slot-exchange routines (run by build.py)
               game.inc     addresses of the game routines the mod calls (Rev 1)
               targets.inc  which monster types the partners attack
-              tools/       regenerate game.inc from the Zelda 1 disassembly
+              hints.py     the rewritten NPC text and its encoder
+              tools/       regenerate game.inc from the Zelda 1 disassembly; make_ips.py builds the IPS patch
 docs/         technical write-up
 ```
 

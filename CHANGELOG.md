@@ -5,6 +5,27 @@ states from the overworld and dungeons 1–9 (room-clear times, slowdown, partne
 targeted tests for each feature, and a crash test walking through rooms of the overworld and
 all nine dungeons.
 
+## v4 — boss tactics, candle, 9 keys, clearer hints
+- **Partners use boss weaknesses.** Dodongo: they walk to the spot in front of its mouth, face it
+  and drop a bomb (partner bombs now feed and stun it too); once stunned the sword works. Gohma:
+  arrows as soon as they are lined up, at any range. Big Digdogger: the partner plays your
+  recorder once (if you own one) so it splits into the small ones. Tested: all nine dungeon
+  bosses go down in the emulator, including Dodongo (level 2), Digdogger (5) and Gohma (6).
+- **Candle.** Once you own a candle (you don't start with one), dark dungeon rooms are lit (room brightness 22 → 90 in the test room) and your partners burn secret bushes
+  themselves: one walks to the bush, lights the candle in front of it and the secret opens (tested with
+  red and blue candles at several positions; with no candle the bush stays).
+- **9 keys** at the start of a new file (the HUD shows `X9`).
+- **Clearer NPC text.** 24 of the 38 strings rewritten using facts checked in the game's code
+  (hearts for the swords, prices, mazes, boss weaknesses, drop rule); the other 14 were already
+  clear and keep their original bytes. Strings are centred and use the game's instant blank for
+  padding. Checked by decoding every string from the built ROM and by displaying several in the
+  game's own text box.
+- Build: `src/hints.py` holds the text; `src/tools/make_ips.py` builds the IPS patch and checks
+  that it reproduces the ROM byte for byte.
+- Regression: register screen with stale values in the flag from the previous fix (8 values, all
+  stay open); random-play crash tests on levels 0, 1, 2, 4, 5, 6 and 8 (5,000 frames each) with no
+  crashes or stray writes.
+
 ## Final — title credit and menu fix
 - Title screen now shows "THREE SWORDS ROM HACK" and "BY RAMENPHOLIFE" inside the title frame.
 - Fixed the heart-cursor glitch: the menu code used a flag in the stack page (not cleared at

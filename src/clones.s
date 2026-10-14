@@ -56,6 +56,8 @@ InvBombs        = $658
 InvArrow        = $659
 Bow             = $65A
 InvCandle       = $65B
+InvRecorder     = $65C
+UsedFlute       = $51B
 InvRupees       = $66D
 HeartValues     = $66F
 HeartPartial    = $670
@@ -788,9 +790,13 @@ ProcessClone:
     AND #$04                    ; a bomb for a breakable wall
     BEQ @nowb
     LDA CSTATE
-    BNE @noit
+    BEQ @wb1
+    JMP @noit
+@wb1:
     JSR ArmedOk
-    BCC @noit
+    BCS @wb2
+    JMP @noit
+@wb2:
     LDA #$01
     STA FORCEBOMB
     LDA #(G_BOMB | $80)
@@ -798,6 +804,20 @@ ProcessClone:
     STA GROUPS
     JMP @noit
 @nowb:
+    LDA CL_WANT, X
+    AND #$10                    ; a bomb for a Dodongo (its weakness)
+    BEQ @nodb
+    LDA CSTATE
+    BNE @noit
+    JSR ArmedOk
+    BCC @noit
+    LDA #$03
+    STA FORCEBOMB
+    LDA #(G_BOMB | $80)
+    ORA GROUPS
+    STA GROUPS
+    JMP @noit
+@nodb:
     LDA CL_WANT, X
     AND #$08                    ; an arrow at a far monster
     BEQ @noar
@@ -812,6 +832,20 @@ ProcessClone:
     STA GROUPS
     JMP @noit
 @noar:
+    LDA CL_WANT, X
+    AND #$20                    ; the candle for a secret bush
+    BEQ @nofi
+    LDA CSTATE
+    BNE @noit
+    JSR ArmedOk
+    BCC @noit
+    LDA #$04
+    STA FORCEBOMB
+    LDA #(G_BOMB | $80)
+    ORA GROUPS
+    STA GROUPS
+    JMP @noit
+@nofi:
     LDA CL_WANT, X
     AND #$02
     BEQ @noit
@@ -1046,6 +1080,7 @@ Slow:
     BEQ :+
     FAR 5, UpdateBombOrFire
 :   JSR RockCheck
+    JSR TreeCheck
     LDA GROUPS
     AND #G_ARROW
     BEQ :+
@@ -1145,7 +1180,13 @@ UseItem:
     CMP #$02
     BNE :+
     JMP UseArrow
-:   JMP @bomb
+:   CMP #$03
+    BEQ @fbomb
+    CMP #$04
+    BNE @fb1
+    JMP @fcandle
+@fb1:
+    JMP @bomb
 :   LDA SelectedItemSlot
     BNE @notBoom
     LDA InvBoomerang
@@ -1175,6 +1216,17 @@ UseItem:
     LDA #$01
     STA BPLACED
 :   RTS
+@fbomb:                         ; a bomb for a Dodongo (not a wall job)
+    LDA ObjState+$10
+    ORA ObjState+$11
+    BNE @r0
+    LDA InvBombs
+    BEQ @r0
+    JSR WieldBomb
+    LDX CUR
+    LDA #100
+    STA CL_ICD, X
+    RTS
 @notBomb:
     CMP #$02
     BNE @notArrow
@@ -1190,6 +1242,7 @@ UseItem:
 @notArrow:
     CMP #$04
     BNE @notCandle
+@candle:
     LDA InvCandle
     BEQ @r1
     LDA ObjState+$10
@@ -1213,6 +1266,14 @@ UseItem:
     BNE @r1
     FAR 5, WieldRod
     RTS
+@fcandle:                       ; burn a secret bush (whatever item is selected)
+    JSR @candle
+    LDA ObjState+$10
+    ORA ObjState+$11
+    BEQ :+
+    LDA #$01
+    STA BPLACED
+:   RTS
 
 ; A partner's arrow: free and always available (no bow, arrows or
 ; rupees needed).  Slow has made InvArrow at least wooden.
@@ -1512,7 +1573,8 @@ Follow:
     LDA CSTATE                  ; no moving while swinging
     BEQ :+
     RTS
-:   JSR WallTask                ; nothing to fight: bomb a breakable wall?
+:   JSR DigCheck                ; a big Digdogger (nothing to hit yet): play the recorder
+    JSR WallTask                ; nothing to fight: bomb a breakable wall?
     BCC :+
     RTS
 :   LDA LSTILL                  ; the player has stopped a while and we are
@@ -1921,6 +1983,9 @@ Fight:
     LDA CSTATE
     BEQ :+
     RTS                         ; busy swinging
+:   JSR BossTactic              ; bosses with a weakness: use it
+    BCC :+
+    RTS
 :   LDA PERP
     CMP #$09
     BCS @approach
@@ -2034,6 +2099,171 @@ Fight:
     LDA FACE
     STA CDIR
     RTS
+
+
+; ---------------------------------------------------------------------------
+; Bosses that only one weapon hurts.  Called from Fight with FACE, ALONG, PERP
+; and SDX/SDY set for the current target.  C = 1 if handled this frame.
+;   Dodongo ($31,$32): bombs.  Walk to the spot just ahead of its mouth, face it
+;                      and drop a bomb.  Once a bomb has stunned it the sword
+;                      works, so the normal fight takes over.
+;   Gohma ($33,$34):   arrows only (the sword does nothing).  Shoot as soon as
+;                      lined up, at any range.
+;   Big Digdogger ($38,$39): the recorder splits it into small ones the sword
+;                      can hurt; played once (if the player owns a recorder).
+BossTactic:
+    LDX CUR
+    LDY CL_TGT, X
+    LDA ObjType, Y
+    CMP #$31
+    BEQ @dodo
+    CMP #$32
+    BEQ @dodo
+    CMP #$33
+    BEQ @gohma
+    CMP #$34
+    BEQ @gohma
+    CMP #$38
+    BEQ @dig
+    CMP #$39
+    BEQ @dig
+@no:
+    CLC
+    RTS
+@gohma:
+    LDA PERP
+    CMP #$05
+    BCS @no                     ; not lined up yet: walk up as usual
+    LDA FACE
+    STA CDIR
+    LDX CUR
+    LDA CL_MASK, X
+    AND #$20
+    BNE @hold                   ; an arrow is already flying
+    LDA CL_ICD, X
+    BNE @hold
+    JSR ArmedOkArrow
+    BCC @hold
+    LDA CL_WANT, X
+    ORA #$08
+    STA CL_WANT, X
+@hold:
+    SEC
+    RTS
+@dig:
+    LDA UsedFlute
+    BNE @no                     ; already played (it has split up)
+    LDA InvRecorder
+    BEQ @no
+    LDX CUR
+    LDA CL_ICD, X
+    BNE @hold
+    JSR WieldFlute
+    LDX CUR
+    LDA #120
+    STA CL_ICD, X
+    BNE @hold
+@dodo:
+    LDA ObjState, Y
+    CMP #$02
+    BEQ @no                     ; stunned: sword time
+    LDA InvBombs
+    BEQ @no
+    ; target spot (top-left of the partner): 24 px ahead of the mouth
+    LDA ObjDir, Y
+    AND #$0F
+    BEQ @no
+    STA TMP
+    AND #$03
+    BEQ @vert
+    LDA ObjX, Y                 ; facing right / left
+    CLC
+    ADC #$08
+    LDX TMP
+    CPX #$01
+    BEQ @r
+    SEC
+    SBC #$18                    ; left: centre-24
+    JMP @sx
+@r: CLC
+    ADC #$18
+@sx:STA TX
+    LDA ObjY, Y
+    STA TY
+    JMP @goto
+@vert:
+    LDA ObjX, Y
+    STA TX
+    LDA ObjY, Y
+    LDX TMP
+    CPX #$04
+    BEQ @d
+    SEC
+    SBC #$18                    ; up
+    JMP @sy
+@d: CLC
+    ADC #$18
+@sy:STA TY
+@goto:
+    JSR Delta
+    LDA ADX
+    CLC
+    ADC ADY
+    CMP #$04
+    BCC @there
+    LDA #$01
+    STA COLLIDE
+    LDA #$02
+    STA SPEED
+    JSR MoveStep
+    JSR StuckCheck
+    LDX CUR
+    LDA CL_STUCK, X
+    CMP #30
+    BCS @no2                    ; can't get there: fight normally
+    SEC
+    RTS
+@no2:
+    CLC
+    RTS
+@there:
+    LDA ObjDir, Y
+    AND #$0F
+    JSR Opposite                ; face the Dodongo
+    STA CDIR
+    LDX CUR
+    LDA CL_ICD, X
+    BNE @hold2
+    LDA CL_WANT, X
+    ORA #$10
+    STA CL_WANT, X
+@hold2:
+    SEC
+    RTS
+
+; A big Digdogger can't be hurt until the recorder splits it up: the partners
+; play the player's recorder for him (once per room), as soon as he is around.
+DigCheck:
+    LDA UsedFlute
+    BNE @r
+    LDA InvRecorder
+    BEQ @r
+    LDA CurLevel
+    BEQ @r
+    LDA GameMode
+    CMP #$05
+    BNE @r
+    LDY #$0B
+@l: LDA ObjType, Y
+    CMP #$38
+    BEQ @go
+    CMP #$39
+    BEQ @go
+    DEY
+    BNE @l
+@r: RTS
+@go:
+    JMP WieldFlute
 
 ; Is the selected B item usable at this range?  C = 1 if yes.
 ItemInRange:
@@ -2539,7 +2769,12 @@ WallTask:
     CMP #$05
     BNE @no0
     LDA InvBombs
+    BNE @have
+    LDA CurLevel                ; no bombs: on the overworld the candle can still burn a bush
+    BNE @no0
+    LDA InvCandle
     BEQ @no0
+@have:
     LDA BOMBER
     BMI @free
     CMP CUR
@@ -2612,8 +2847,13 @@ WallTask:
     LDX CUR
     LDA CL_ICD, X
     BNE :+
-    LDA CL_WANT, X
-    ORA #$04
+    LDA BJOB
+    CMP #$05
+    LDA #$04                    ; a bomb for a wall ...
+    BCC @wnt
+    LDA #$20                    ; ... the candle for a bush
+@wnt:
+    ORA CL_WANT, X
     STA CL_WANT, X
 :   SEC
     RTS
@@ -2650,10 +2890,20 @@ ScanWalls:
 @ow:
     LDY #$0B
 @o: LDA ObjType, Y
+    CMP #$64                    ; a bush that hides a secret: needs the candle
+    BEQ @bush
     CMP #$63
-    BEQ @rock
+    BEQ @wall
     CMP #$67
-    BEQ @rock
+    BNE @nx
+@wall:
+    LDA InvBombs                ; a rock wall: needs bombs
+    BNE @rock
+    BEQ @nx
+@bush:
+    LDA InvCandle
+    BNE @rock
+@nx:
     DEY
     BNE @o
     RTS
@@ -2734,6 +2984,11 @@ PickWall:
     BEQ @none
     LDA #$04
     STA BJOB
+    LDA ObjType, Y
+    CMP #$64
+    BNE :+
+    INC BJOB                    ; 5 = a bush to burn
+:
     ; stand next to the rock wall: below it, else left, right or above
     LDX #$00
 @s: LDA ObjX, Y
@@ -2744,7 +2999,18 @@ PickWall:
     CLC
     ADC TabRockDY, X
     STA TY
-    STX FTMP
+    LDA BJOB                    ; a candle flame lands 32 px ahead: stand 8 px farther
+    CMP #$05
+    BNE :+
+    LDA TX
+    CLC
+    ADC TabBushDX, X
+    STA TX
+    LDA TY
+    CLC
+    ADC TabBushDY, X
+    STA TY
+:   STX FTMP
     JSR FreeAtT
     LDX FTMP
     LDY ROCKSLOT
@@ -2790,6 +3056,8 @@ JobValid:
     CMP #$63
     BEQ :+
     CMP #$67
+    BEQ :+
+    CMP #$64
     BNE @no
 :   SEC
     RTS
@@ -2836,6 +3104,29 @@ RockCheck:
     BNE @l
 @r: RTS
 
+; Overworld: a partner's standing fire (only in the real slots while its
+; weapons are swapped in) is shown to each secret bush's own update routine.
+TreeCheck:
+    LDA GROUPS
+    AND #G_BOMB
+    BEQ @r
+    LDA CurLevel
+    BNE @r
+    LDA ObjState+$10
+    CMP #$22
+    BEQ :+
+    LDA ObjState+$11
+    CMP #$22
+    BNE @r
+:   LDX #$0B
+@l: LDA ObjType, X
+    CMP #$64
+    BNE @n
+    FAR 4, UpdateTree           ; (X is kept)
+@n: DEX
+    BNE @l
+@r: RTS
+
 ; dungeon walls N, S, W, E: where to stand (bomb lands on the door hotspot)
 TabJX:   .byte $78, $78, $30, $C0
 TabJY:   .byte $6D, $AD, $8D, $8D
@@ -2845,6 +3136,8 @@ TabNudY: .byte $F8, $08, $00, $00
 ; overworld rock wall: stand below, left, right, above it, facing it
 TabRockDX: .byte $00, $F0, $10, $00
 TabRockDY: .byte $10, $00, $00, $F0
+TabBushDX: .byte $00, $F8, $08, $00
+TabBushDY: .byte $08, $00, $00, $F8
 TabRockF:  .byte $08, $01, $02, $04
 
 TabBit:
@@ -3155,6 +3448,46 @@ CXchgW:
 :   JMP CXchgW_1
 
 .include "xchg_coll.inc"
+
+; ---------------------------------------------------------------------------
+; Dodongo: let the partners' bombs feed / stun it too.  Replaces the
+; "JSR Dodongo_CheckBombHit" in UpdateDodongo.  X = Dodongo's slot.
+DBX = $115                      ; (CL_TGT+2: unused with NCL = 2)
+DodoBombHook:
+    JSR Dodongo_CheckBombHit    ; the player's bomb, as before
+    LDA CL_MASK
+    ORA CL_MASK+1
+    AND #$08
+    BEQ @done
+    LDA ObjState, X
+    BNE @done                   ; (only matters while it walks)
+    STX DBX
+    LDA #$00
+    STA CPASS
+@lp:
+    LDX CPASS
+    LDA CL_MASK, X
+    AND #$08
+    BEQ @next
+    LDX #$10
+    JSR CXchgW                  ; the partner's bomb into slot $10
+    LDX DBX
+    JSR Dodongo_CheckBombHit
+    LDX #$10
+    JSR CXchgW                  ; ... and back
+    LDX DBX
+    LDA ObjState, X
+    BNE @fin
+@next:
+    INC CPASS
+    LDA CPASS
+    CMP #NCL
+    BNE @lp
+@fin:
+    LDX DBX
+@done:
+    RTS
+
 B4End:
 
 .include "menu.s"
